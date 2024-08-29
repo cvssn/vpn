@@ -1,5 +1,9 @@
 ## script de auto-instalação de vpn ipsec/l2tp para ubuntu/debian
 
+nota: esse repositório foi criado a partir desses gists do github:
+- https://gist.github.com/hwdsl2/9030462 (237 estrelas, 92 forks)
+- https://gist.github.com/hwdsl2/e9a78a50e300d12ae195 (20 estrelas, 8 forks)
+
 arquivo de dados do usuário do amazon ec2 para configuração automática do servidor vpn ipsec/l2tp em uma instância ubuntu ou debian. testado com cbuntu 14.04 e 12.04 debian 8 (jessie).
 
 com pequenas modificações, este script **também pode ser usado** em servidores dedicados ou qualquer servidor virtual privado (vps) baseado em kvm ou xen de outros provedores.
