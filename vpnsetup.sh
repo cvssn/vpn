@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # arquivo de dados do usuário do amazon ec2 para configuração automática de vpn ipsec/l2tp
-# em uma instância de servidor ubuntu. testado com 14.04 (confiável) e 12.04 (preciso).
+# em uma instância de servidor ubuntu ou debian. testado com ubuntu 14.04 e 12.04 e debian 8 e 7.
 # com pequenas modificações, este script também pode ser usado em servidores dedicados
 # ou qualquer servidor virtual privado (vps) baseado em kvm ou xen de outros provedores.
 #
@@ -31,8 +31,8 @@ if [ "$(uname)" = "Darwin" ]; then
     exit
 fi
 
-if [ "$(lsb_release -si)" != "Ubuntu" ]; then
-    echo "parece que você não está rodando esse script em um sistema ubuntu."
+if [ "$(lsb_release -si)" != "Ubuntu" ] && [ "$(lsb_release -si)" != "Debian" ]; then
+    echo "parece que você não está rodando esse script em um sistema ubuntu ou debian."
 
     exit
 fi
@@ -191,7 +191,7 @@ cat > /etc/ppp/chap-secrets <<EOF
 $VPN_USER l2tpd $VPN_PASSWORD *
 EOF
 
-/bin/cp -f /etc/sysctl.conf /etc/sysctl.conf.old-$(date +%Y-%m-%d-%H:%M:%S)
+/bin/cp -f /etc/sysctl.conf /etc/sysctl.conf.old-$(date +%Y-%m-%d-%H:%M:%S) 2>/dev/null
 cat > /etc/sysctl.conf <<EOF
 kernel.sysrq = 0
 kernel.core_uses_pid = 1
@@ -224,7 +224,7 @@ net.ipv4.tcp_rmem= 10240 87380 12582912
 net.ipv4.tcp_wmem= 10240 87380 12582912
 EOF
 
-/bin/cp -f /etc/iptables.rules /etc/iptables.rules.old-$(date +%Y-%m-%d-%H:%M:%S)
+/bin/cp -f /etc/iptables.rules /etc/iptables.rules.old-$(date +%Y-%m-%d-%H:%M:%S) 2>/dev/null
 cat > /etc/iptables.rules <<EOF
 *filter
 :INPUT ACCEPT [0:0]
@@ -245,7 +245,7 @@ cat > /etc/iptables.rules <<EOF
 -A FORWARD -i eth+ -o ppp+ -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 -A FORWARD -i ppp+ -o eth+ -j ACCEPT
 -A FORWARD -j DROP
--A ICMPALL -p icmp -f -j DROP        
+-A ICMPALL -p icmp -f -j DROP
 -A ICMPALL -p icmp --icmp-type 0 -j ACCEPT
 -A ICMPALL -p icmp --icmp-type 3 -j ACCEPT
 -A ICMPALL -p icmp --icmp-type 4 -j ACCEPT
@@ -268,7 +268,7 @@ cat > /etc/network/if-pre-up.d/iptablesload <<EOF
 exit 0
 EOF
 
-/bin/cp -f /etc/rc.local /etc/rc.local.old-$(date +%Y-%m-%d-%H:%M:%S)
+/bin/cp -f /etc/rc.local /etc/rc.local.old-$(date +%Y-%m-%d-%H:%M:%S) 2>/dev/null
 cat > /etc/rc.local <<EOF
 #!/bin/sh -e
 #
