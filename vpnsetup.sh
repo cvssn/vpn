@@ -61,19 +61,29 @@ VPN_PASSWORD=sua_senha_segura
 # usuários de iphone/ios podem precisar substituir esta linha em ipsec.conf:
 # "rightprotoport=17/%any" por "rightprotoport=17/0".
 
+# criar e alterar o diretório de trabalho
+mkdir -p /opt/src
+cd /opt/src || { echo "falha ao alterar o diretório de trabalho para /opt/src. abortando."; exit 1; }
+
 # atualizar o índice do pacote e instalar o wget, dig (dnsutils) e nano
 export DEBIAN_FRONTEND=noninteractive
 apt-get -y update
 apt-get -y install wget dnsutils nano
 
-echo 'se o script travar aqui, pressione ctrl-c para interromper, edite-o e comente'
-echo 'as próximas duas linhas PUBLIC_IP= e PRIVATE_IP=, ou substitua-as pelos ips reais.'
+echo
+echo 'aguarde... tentando encontrar o ip público e o ip privado deste servidor.'
+echo
+echo 'se o script travar aqui por mais de alguns minutos, pressione ctrl-c para interromper,'
+echo 'em seguida, edite-o e comente as próximas duas linhas PUBLIC_IP= e PRIVATE_IP=,'
+echo 'ou substitua-os pelos ips reais. se o seu servidor tiver apenas um ip público,'
+echo 'coloque esse ip público em ambas as linhas.'
+echo
 
 # no amazon ec2, essas duas variáveis serão encontradas automaticamente.
 # para todos os outros servidores, você talvez precise substituir com o
 # ip atual, ou comentar e deixar o script auto-detectar a próxima sessão
 #
-# se o seu servidor apenas possui um ip público, utilize esse ip em ambas as linhas
+# se o seu servidor apenas possui um ip público, ponha esse ip público em ambas as linhas
 PUBLIC_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/latest/meta-data/public-ipv4')
 PRIVATE_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/latest/meta-data/local-ipv4')
 
@@ -91,10 +101,6 @@ apt-get -y install libnss3-dev libnspr4-dev pkg-config libpam0g-dev \
         libunbound-dev libnss3-tools libevent-dev
 apt-get -y --no-install-recommends install xmlto
 apt-get -y install xl2tpd
-
-# criar e alterar o diretório de trabalho
-mkdir -p /opt/src
-cd /opt/src || { echo "falha ao alterar o diretório de trabalho para /opt/src. abortando."; exit 1; }
 
 # compilar e instalar o libreswan (https://libreswan.org/)
 #

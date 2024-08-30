@@ -74,17 +74,27 @@ VPN_PASSWORD=sua_senha_segura
 # usuários de iphone/ios podem precisar substituir esta linha em ipsec.conf:
 # "rightprotoport=17/%any" por "rightprotoport=17/0".
 
+# criar e alterar o diretório de trabalho
+mkdir -p /opt/src
+cd /opt/src || { echo "falha ao alterar o diretório de trabalho para /opt/src. abortando."; exit 1; }
+
 # Install wget, dig (bind-utils) and nano
 yum -y install wget bind-utils nano
 
-echo 'se o script travar aqui, pressione ctrl-c para interromper, edite-o e comente'
-echo 'as próximas duas linhas PUBLIC_IP= e PRIVATE_IP=, ou substitua-as pelos ips reais.'
+echo
+echo 'aguarde... tentando encontrar o ip público e o ip privado deste servidor.'
+echo
+echo 'se o script travar aqui por mais de alguns minutos, pressione ctrl-c para interromper,'
+echo 'em seguida, edite-o e comente as próximas duas linhas PUBLIC_IP= e PRIVATE_IP=,'
+echo 'ou substitua-os pelos ips reais. se o seu servidor tiver apenas um ip público,'
+echo 'coloque esse ip público em ambas as linhas.'
+echo
 
 # no amazon ec2, essas duas variáveis serão encontradas automaticamente.
 # para todos os outros servidores, você talvez precise substituir com o
 # ip atual, ou comentar e deixar o script auto-detectar a próxima sessão
 #
-# se o seu servidor apenas possui um ip público, utilize esse ip em ambas as linhas
+# se o seu servidor apenas possui um ip público, ponha esse ip público em ambas as linhas
 PUBLIC_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/latest/meta-data/public-ipv4')
 PRIVATE_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/latest/meta-data/local-ipv4')
 
@@ -94,10 +104,6 @@ PRIVATE_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/la
 [ "$PUBLIC_IP" = "" ] && { echo "Could not find Public IP, please edit the VPN script manually."; exit 1; }
 [ "$PRIVATE_IP" = "" ] && PRIVATE_IP=$(ifconfig eth0 | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*')
 [ "$PRIVATE_IP" = "" ] && { echo "Could not find Private IP, please edit the VPN script manually."; exit 1; }
-
-# criar e alterar o diretório de trabalho
-mkdir -p /opt/src
-cd /opt/src || { echo "falha ao alterar o diretório de trabalho para /opt/src. abortando."; exit 1; }
 
 # adicionar o repositório epel
 if grep -qs "release 6" /etc/redhat-release; then
