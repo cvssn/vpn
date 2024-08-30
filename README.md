@@ -1,5 +1,9 @@
 # scripts de configuração automática do servidor vpn ipsec/l2tp
 
+nota: esse repositório foi criado a partir dos trabalhos dos gists github:
+- https://gist.github.com/hwdsl2/9030462 (237 estrelas, 92 forks)
+- https://gist.github.com/hwdsl2/e9a78a50e300d12ae195 (20 estrelas, 8 forks)
+
 scripts para configuração automática de um servidor vpn ipsec/l2tp no ubuntu 14.04 e 12.04, debian 8 e centos/rhel 6 e 7. funciona em servidores dedicados ou qualquer servidor virtual privado (vps) baseado em kvm ou xen, com linux recém-instalado os.
 
 eles também podem ser usados ​​como "dados do usuário" do amazon ec2 com o <a href="https://cloud-images.ubuntu.com/locator/ec2/" target="_blank">ubuntu 14.04/12.04</a>, <a href="https://wiki.debian.org/Cloud/AmazonEC2Image/Jessie" target="_blank">debian 8</a> ou <a href="https://aws.amazon.com/marketplace/pp/B00O7WM7QW" target="_blank">centos 7</a> amis.
