@@ -6,6 +6,8 @@ nota: esse repositório foi criado a partir dos trabalhos dos gists github:
 
 scripts para configuração automática de um servidor vpn ipsec/l2tp no ubuntu 14.04 e 12.04, debian 8 e centos/rhel 6 e 7. tudo que você precisa fazer é fornecer seus próprios valores para `IPSEC_PSK`, `VPN_USER` e `VPN_PASSWORD`, e eles cuidarão do resto. esses scripts também podem ser usados ​​diretamente como "dados do usuário" do amazon ec2 ao criar uma nova instância.
 
+utilizaremos <a href="https://libreswan.org/" target="_blank">libreswan</a> como o servidor ipsec, e <a href="https://www.xelerance.com/services/software/xl2tpd/" target="_blank">xl2tpd</a> como o fornecedor l2tp.
+
 ### <a href="https://blog.ls20.com/ipsec-l2tp-vpn-auto-setup-for-ubuntu-12-04-on-amazon-ec2/" target="_blank">meu tutorial de vpn com instruções detalhadas de uso</a>
 
 ## requisitos
@@ -55,6 +57,10 @@ nano -w vpnsetup_centos.sh
 [edite e substitua ipsec_psk, vpn_user e vpn_password pelos seus próprios valores]
 /bin/sh vpnsetup_centos.sh
 ```
+
+## atualizando o libreswan
+
+você pode usar os scripts `vpnupgrade_Libreswan.sh` (para o ubuntu/debian) e `vpnupgrade_Libreswan_centos.sh` (para o centos/rhel) para atualizar o <a href="https://libreswan.org/" target="_blank">libreswan</a> para uma versão mais recente.
 
 ## notas importantes
 
