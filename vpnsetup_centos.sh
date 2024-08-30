@@ -28,6 +28,12 @@ if [ ! -f /etc/redhat-release ]; then
     exit 1
 fi
 
+if grep -qs -v -e "release 6" -e "release 7" /etc/redhat-release; then
+    echo "desculpe, esse script suporta apenas as versões 6 e 7 do centos/rhel."
+    
+    exit 1
+fi
+
 if [ "$(uname -m)" != "x86_64" ]; then
     echo "desculpe, este script suporta apenas centos/rhel de 64 bits."
     
