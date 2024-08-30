@@ -1,9 +1,10 @@
 #!/bin/sh
 #
-# arquivo de dados do usuário do amazon ec2 para configuração automática de vpn ipsec/l2tp
-# em uma instância de servidor ubuntu ou debian. testado com ubuntu 14.04 e 12.04 e debian 8.
-# com pequenas modificações, este script também pode ser usado em servidores dedicados
-# ou qualquer servidor virtual privado (vps) baseado em kvm ou xen de outros provedores.
+# script para configuração automática do servidor vpn ipsec/l2tp em centos/rhel 6 e 7 de 64 bits.
+# funciona em servidores dedicados ou em qualquer servidor virtual privado (vps) baseado em kvm ou xen.
+# ele também pode ser usado como "dados do usuário" do amazon ec2 com a ami oficial do centos 7.
+# observe que o centos 6 ami não vem com cloud-init, portanto, você precisa executar este script
+# manualmente após a criação da instância.
 #
 # NÃO EXECUTAR O SCRIPT NO SEU PC OU MAC! ISTO DEVE SER EXECUTADO QUANDO SUA INSTÂNCIA
 # DO AMAZON EC2 INICIAR
@@ -15,32 +16,38 @@
 # licença: https://creativecommons.org/licenses/by-sa/3.0/
 
 if [ "$(uname)" = "Darwin" ]; then
-    echo 'não rode esse script no seu mac. ele deve ser apenas rodado em uma instância recente ec2'
-    echo 'ou outro servidor dedicado/vps, depois de modificado e com as variáveis configuradas.'
-
+    echo 'não executar esse script no seu mac, só deve ser executado em um servidor sedicado/vps'
+    echo 'ou em uma instância ec2 recém-criada, depois de modificá-la para definir as variáveis abaixo.'
+    
     exit 1
 fi
 
-if [ "$(lsb_release -si)" != "Ubuntu" ] && [ "$(lsb_release -si)" != "Debian" ]; then
-    echo "parece que você não está rodando esse script em um sistema ubuntu ou debian."
+if [ ! -f /etc/redhat-release ]; then
+    echo "parece que você não está executando este script em um sistema centos/rhel."
+    
+    exit 1
+fi
 
+if [ "$(uname -m)" != "x86_64" ]; then
+    echo "desculpe, este script suporta apenas centos/rhel de 64 bits."
+    
     exit 1
 fi
 
 if [ "$(id -u)" != 0 ]; then
-    echo 'desculpe, você precisa rodar esse script como root.'
-
+    echo "desculpe, você precisa executar este script como root."
+  
     exit 1
 fi
 
-# por favor defina seus valores para essas variáveis
+# defina seus próprios valores para essas variáveis
 IPSEC_PSK=sua_key_segura
 VPN_USER=seu_username
 VPN_PASSWORD=sua_senha_segura
 
 # NOTAS IMPORTANTES:
-#
-# se você precisar de múltiplos usuários vpn com diferentes credenciais,
+
+# se você precisar de vários usuários VPN com credenciais diferentes,
 # veja: https://gist.github.com/hwdsl2/123b886f29f4c689f531
 
 # para usuários do windows, é necessária uma alteração única no registro para
@@ -61,10 +68,8 @@ VPN_PASSWORD=sua_senha_segura
 # usuários de iphone/ios podem precisar substituir esta linha em ipsec.conf:
 # "rightprotoport=17/%any" por "rightprotoport=17/0".
 
-# atualizar o índice do pacote e instalar o wget, dig (dnsutils) e nano
-export DEBIAN_FRONTEND=noninteractive
-apt-get -y update
-apt-get -y install wget dnsutils nano
+# Install wget, dig (bind-utils) and nano
+yum -y install wget bind-utils nano
 
 echo 'se o script travar aqui, pressione ctrl-c para interromper, edite-o e comente'
 echo 'as próximas duas linhas PUBLIC_IP= e PRIVATE_IP=, ou substitua-as pelos ips reais.'
@@ -78,23 +83,51 @@ PUBLIC_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/lat
 PRIVATE_IP=$(wget --retry-connrefused -t 3 -T 15 -qO- 'http://169.254.169.254/latest/meta-data/local-ipv4')
 
 # tentativa de encontrar o ip do servidor automaticamente para servidores não ec2
+[ "$PUBLIC_IP" = "" ] && PUBLIC_IP=$(dig +short myip.opendns.com @resolver1.opendns.com)
 [ "$PUBLIC_IP" = "" ] && PUBLIC_IP=$(wget -t 3 -T 15 -qO- http://ipecho.net/plain)
-[ "$PUBLIC_IP" = "" ] && { echo "não foi possível encontrar o ip público. edite o script vpn manualmente."; exit 1; }
-
+[ "$PUBLIC_IP" = "" ] && { echo "Could not find Public IP, please edit the VPN script manually."; exit 1; }
 [ "$PRIVATE_IP" = "" ] && PRIVATE_IP=$(ifconfig eth0 | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*')
-[ "$PRIVATE_IP" = "" ] && { echo "não foi possível encontrar o ip privado. edite o script vpn manualmente."; exit 1; }
-
-# instale os pacotes necessários
-apt-get -y install libnss3-dev libnspr4-dev pkg-config libpam0g-dev \
-        libcap-ng-dev libcap-ng-utils libselinux1-dev \
-        libcurl4-nss-dev libgmp3-dev flex bison gcc make \
-        libunbound-dev libnss3-tools libevent-dev
-apt-get -y --no-install-recommends install xmlto
-apt-get -y install xl2tpd
+[ "$PRIVATE_IP" = "" ] && { echo "Could not find Private IP, please edit the VPN script manually."; exit 1; }
 
 # criar e alterar o diretório de trabalho
 mkdir -p /opt/src
 cd /opt/src || { echo "falha ao alterar o diretório de trabalho para /opt/src. abortando."; exit 1; }
+
+# adicionar o repositório epel
+if grep -qs "release 6" /etc/redhat-release; then
+    EPEL_RPM="epel-release-6-8.noarch.rpm"
+    EPEL_URL="http://download.fedoraproject.org/pub/epel/6/x86_64/$EPEL_RPM"
+elif grep -qs "release 7" /etc/redhat-release; then
+    EPEL_RPM="epel-release-7-5.noarch.rpm"
+    EPEL_URL="http://download.fedoraproject.org/pub/epel/7/x86_64/e/$EPEL_RPM"
+else
+    echo "desculpe, este script suporta apenas as versões 6 e 7 do centos/rhel."
+
+    exit 1
+fi
+wget -t 3 -T 30 -nv -O $EPEL_RPM $EPEL_URL
+[ ! -f $EPEL_RPM ] && { echo "não foi possível recuperar o arquivo rpm do repositório epel. abortando."; exit 1; }
+rpm -ivh --force $EPEL_RPM && /bin/rm -f $EPEL_RPM
+
+# instale os pacotes necessários
+yum -y install nss-devel nspr-devel pkgconfig pam-devel \
+    libcap-ng-devel libselinux-devel \
+    curl-devel gmp-devel flex bison gcc make \
+    fipscheck-devel unbound-devel gmp gmp-devel xmlto
+yum -y install ppp xl2tpd
+
+# libevent 2 instalado. usar a versão backportada para centos 6.
+if grep -qs "release 6" /etc/redhat-release; then
+    LE2_URL="https://people.redhat.com/pwouters/libreswan-rhel6"
+    RPM1="libevent2-2.0.21-1.el6.x86_64.rpm"
+    RPM2="libevent2-devel-2.0.21-1.el6.x86_64.rpm"
+    wget -t 3 -T 30 -nv -O $RPM1 $LE2_URL/$RPM1
+    wget -t 3 -T 30 -nv -O $RPM2 $LE2_URL/$RPM2
+    [ ! -f $RPM1 ] || [ ! -f $RPM2 ] && { echo "não foi possível recuperar arquivo(s) rpm do libevent2. abortando."; exit 1; }
+    rpm -ivh --force $RPM1 $RPM2 && /bin/rm -f $RPM1 $RPM2
+elif grep -qs "release 7" /etc/redhat-release; then
+    yum -y install libevent-devel
+fi
 
 # compilar e instalar o libreswan (https://libreswan.org/)
 #
@@ -105,14 +138,13 @@ cd /opt/src || { echo "falha ao alterar o diretório de trabalho para /opt/src. 
 SWAN_VER=3.16
 SWAN_URL=https://download.libreswan.org/libreswan-${SWAN_VER}.tar.gz
 wget -t 3 -T 30 -qO- $SWAN_URL | tar xvz
-[ ! -d libreswan-${SWAN_VER} ] && { echo "não foi possível recuperar os arquivos de origem do libreswan. abortando."; exit 1; }
+[ ! -d libreswan-${SWAN_VER} ] && { echo "não foi possível recuperar os arquivos de origem do libreswan. abortando"; exit 1; }
 cd libreswan-${SWAN_VER}
 make programs && make install
 
-# preparar os arquivos de configuração
+# preparar vários arquivos de configuração
 cat > /etc/ipsec.conf <<EOF
 version 2.0
-
 config setup
     dumpdir=/var/run/pluto/
     nat_traversal=yes
@@ -121,7 +153,6 @@ config setup
     protostack=netkey
     nhelpers=0
     interfaces=%defaultroute
-
 conn vpnpsk
     connaddrfamily=ipv4
     auto=add
@@ -154,13 +185,11 @@ EOF
 cat > /etc/xl2tpd/xl2tpd.conf <<EOF
 [global]
 port = 1701
-
 ;debug avp = yes
 ;debug network = yes
 ;debug state = yes
 ;debug tunnel = yes
-
-[lns padrão]
+[lns default]
 ip range = 192.168.42.10-192.168.42.250
 local ip = 192.168.42.1
 require chap = yes
@@ -190,9 +219,9 @@ connect-delay 5000
 EOF
 
 cat > /etc/ppp/chap-secrets <<EOF
-# segredos para autenticação utilizando o cliente
-# chap para endereços de ip secretos
-
+# segredos para autenticação usando
+# endereços ip secretos do servidor
+# cliente chap
 $VPN_USER l2tpd $VPN_PASSWORD *
 EOF
 
@@ -229,8 +258,8 @@ net.ipv4.tcp_rmem= 10240 87380 12582912
 net.ipv4.tcp_wmem= 10240 87380 12582912
 EOF
 
-/bin/cp -f /etc/iptables.rules "/etc/iptables.rules.old-$(date +%Y-%m-%d-%H:%M:%S)" 2>/dev/null
-cat > /etc/iptables.rules <<EOF
+/bin/cp -f /etc/sysconfig/iptables "/etc/sysconfig/iptables.old-$(date +%Y-%m-%d-%H:%M:%S)" 2>/dev/null
+cat > /etc/sysconfig/iptables <<EOF
 *filter
 :INPUT ACCEPT [0:0]
 :FORWARD ACCEPT [0:0]
@@ -249,7 +278,7 @@ cat > /etc/iptables.rules <<EOF
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
 -A FORWARD -i eth+ -o ppp+ -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 -A FORWARD -i ppp+ -o eth+ -j ACCEPT
-# se você deseja permitir o tráfego entre os próprios clientes vpn, remova o comentário desta linha:
+# If you wish to allow traffic between VPN clients themselves, uncomment this line:
 # -A FORWARD -i ppp+ -o ppp+ -s 192.168.42.0/24 -d 192.168.42.0/24 -j ACCEPT
 -A FORWARD -j DROP
 -A ICMPALL -p icmp -f -j DROP
@@ -262,49 +291,41 @@ cat > /etc/iptables.rules <<EOF
 COMMIT
 *nat
 :PREROUTING ACCEPT [0:0]
-:INPUT ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 :POSTROUTING ACCEPT [0:0]
 -A POSTROUTING -s 192.168.42.0/24 -o eth+ -j SNAT --to-source ${PRIVATE_IP}
 COMMIT
 EOF
 
-cat > /etc/network/if-pre-up.d/iptablesload <<EOF
-#!/bin/sh
-/sbin/iptables-restore < /etc/iptables.rules
-exit 0
-EOF
-
 /bin/cp -f /etc/rc.local "/etc/rc.local.old-$(date +%Y-%m-%d-%H:%M:%S)" 2>/dev/null
 cat > /etc/rc.local <<EOF
-#!/bin/sh -e
+#!/bin/sh
 #
-# rc.local
-#
-# esse script é executado no final de cada runlevel de multiusuário.
-# certifique-se de que o script irá rodar "exit 0" no sucesso de
-# qualquer outro valor durante o erro.
-#
-# para ativar ou desativar este script basta alterar os bits de
-# execução.
-#
-# por padrão, este script não faz nada.
-/usr/sbin/service ipsec restart
-/usr/sbin/service xl2tpd restart
+# esse script será executado depois de todos os outros scripts
+# de inicialização. você pode colocar seu próprio material de
+# inicialização aqui se não quiser fazer o material de
+# inicialização completo no estilo sys v.
+touch /var/lock/subsys/local
+/sbin/iptables-restore < /etc/sysconfig/iptables
+/sbin/service ipsec restart
+/sbin/service xl2tpd restart
 echo 1 > /proc/sys/net/ipv4/ip_forward
-exit 0
 EOF
 
 if [ ! -f /etc/ipsec.d/cert8.db ] ; then
-   echo > /var/tmp/libreswan-nss-pwd
-   /usr/bin/certutil -N -f /var/tmp/libreswan-nss-pwd -d /etc/ipsec.d
-   /bin/rm -f /var/tmp/libreswan-nss-pwd
+    echo > /var/tmp/libreswan-nss-pwd
+    /usr/bin/certutil -N -f /var/tmp/libreswan-nss-pwd -d /etc/ipsec.d
+    /bin/rm -f /var/tmp/libreswan-nss-pwd
 fi
 
-/sbin/sysctl -p
-/bin/chmod +x /etc/network/if-pre-up.d/iptablesload
-/bin/chmod 600 /etc/ipsec.secrets /etc/ppp/chap-secrets
-/sbin/iptables-restore < /etc/iptables.rules
+# restaurar contextos SELinux
+restorecon /etc/ipsec.d/*db 2>/dev/null
+restorecon /usr/local/sbin -Rv 2>/dev/null
+restorecon /usr/local/libexec/ipsec -Rv 2>/dev/null
 
-/usr/sbin/service ipsec restart
-/usr/sbin/service xl2tpd restart
+/sbin/sysctl -p
+/bin/chmod 600 /etc/ipsec.secrets /etc/ppp/chap-secrets
+/sbin/iptables-restore < /etc/sysconfig/iptables
+
+/sbin/service ipsec restart
+/sbin/service xl2tpd restart
